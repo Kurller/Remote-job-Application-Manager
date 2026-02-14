@@ -1,23 +1,38 @@
 import express from "express";
-import path from "path";
 import dotenv from "dotenv";
+import cors from "cors";
 import "./config/db.js";
 
+// Routes
+import authRoutes from "./routes/authRoutes.js";
+import jobRoutes from "./routes/jobs.js";
+import applicationRoutes from "./routes/applicationRoutes.js";
+import tailoredCVRoutes from "./routes/tailoredCVRoutes.js";
+import candidateRoutes from "./routes/candidateRoutes.js";
+import cvRoutes from "./routes/cvRoutes.js";
+
 dotenv.config();
+
 const app = express();
 
+// Middleware
+app.use(express.json());
+app.use(cors({
+  origin: process.env.FRONTEND_URL,
+  credentials: true,
+}));
+
 // API routes
-import authRoutes from "./routes/authRoutes.js";
 app.use("/auth", authRoutes);
-// other routes...
+app.use("/jobs", jobRoutes);
+app.use("/applications", applicationRoutes);
+app.use("/tailored-cvs", tailoredCVRoutes);
+app.use("/candidates", candidateRoutes);
+app.use("/cvs", cvRoutes);
 
-// Serve frontend
-const __dirname = path.resolve();
-const frontendPath = path.join(__dirname, "dist");
-app.use(express.static(frontendPath));
-
-app.get("*", (req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
+// Root route (API only)
+app.get("/", (req, res) => {
+  res.json({ message: "Remote Job API is running 🚀" });
 });
 
 // Health check
@@ -25,5 +40,7 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
