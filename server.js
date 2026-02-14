@@ -9,16 +9,14 @@ const app = express();
 // API routes
 import authRoutes from "./routes/authRoutes.js";
 app.use("/auth", authRoutes);
-// add other routes like /jobs, /applications, etc.
+// other routes...
 
-// Serve Vite frontend from `dist` folder
+// Serve frontend
 const __dirname = path.resolve();
 const frontendPath = path.join(__dirname, "dist");
-
 app.use(express.static(frontendPath));
 
-// Only send index.html for non-API routes
-app.get(/^\/(?!auth|jobs|applications|cvs|tailored-cvs|candidates).*/, (req, res) => {
+app.get("*", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
