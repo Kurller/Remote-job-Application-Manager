@@ -1,38 +1,28 @@
 import express from "express";
+import path from "path";
 import dotenv from "dotenv";
-import cors from "cors";
 import "./config/db.js";
 
-import authRoutes from "./routes/authRoutes.js";
-import jobRoutes from "./routes/jobs.js";
-import applicationRoutes from "./routes/applicationRoutes.js";
-import tailoredCVRoutes from "./routes/tailoredCVRoutes.js";
-import candidateRoutes from "./routes/candidateRoutes.js";
-import errorHandler from "./middlewares/errorHandler.js";
-import cvRoutes from "./routes/cvRoutes.js"
-
 dotenv.config();
-
 const app = express();
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
-app.use(cors({
-  origin: FRONTEND_URL,
-  credentials: true,
-}));
-
-app.use(express.json());
-
+// API routes
+import authRoutes from "./routes/authRoutes.js";
 app.use("/auth", authRoutes);
-app.use("/jobs", jobRoutes);
-app.use("/applications", applicationRoutes);
-app.use("/tailored-cvs", tailoredCVRoutes);
-app.use("/candidates", candidateRoutes);
-app.use("/cvs", cvRoutes)
+// add other routes like /jobs, /applications, etc.
 
-app.use(errorHandler);
+// Serve Vite frontend from `dist` folder
+const __dirname = path.resolve();
+const frontendPath = path.join(__dirname, "dist");
 
-// Health check endpoint
+app.use(express.static(frontendPath));
+
+// Only send index.html for non-API routes
+app.get(/^\/(?!auth|jobs|applications|cvs|tailored-cvs|candidates).*/, (req, res) => {
+  res.sendFile(path.join(frontendPath, "index.html"));
+});
+
+// Health check
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
