@@ -15,14 +15,29 @@ dotenv.config();
 
 const app = express();
 
-// Middleware
-app.use(express.json());
-app.use(cors({
-  origin: process.env.FRONTEND_URL,
-  credentials: true,
-}));
+/* =========================
+   TRUST PROXY (RENDER)
+========================= */
+app.set("trust proxy", 1);
 
-// API routes
+/* =========================
+   MIDDLEWARE
+========================= */
+app.use(express.json());
+
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      process.env.FRONTEND_URL, // e.g. https://your-app.vercel.app
+    ],
+    credentials: true, // safe even if not using cookies
+  })
+);
+
+/* =========================
+   ROUTES
+========================= */
 app.use("/auth", authRoutes);
 app.use("/jobs", jobRoutes);
 app.use("/applications", applicationRoutes);
@@ -30,16 +45,20 @@ app.use("/tailored-cvs", tailoredCVRoutes);
 app.use("/candidates", candidateRoutes);
 app.use("/cvs", cvRoutes);
 
-// Root route (API only)
+/* =========================
+   HEALTH CHECK
+========================= */
 app.get("/", (req, res) => {
   res.json({ message: "Remote Job API is running 🚀" });
 });
 
-// Health check
 app.get("/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  res.json({ status: "ok", time: new Date().toISOString() });
 });
 
+/* =========================
+   SERVER
+========================= */
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
