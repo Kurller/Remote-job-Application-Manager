@@ -54,6 +54,9 @@ export const register = async (req, res) => {
 
 // LOGIN
 export const login = async (req, res) => {
+  console.log("Request body:", req.body); // <-- move inside route
+  console.log("JWT secret:", process.env.JWT_SECRET);
+  console.log("DB_HOST:", process.env.DB_HOST);
   const { email, password } = req.body;
 
   try {
