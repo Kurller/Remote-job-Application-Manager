@@ -13,15 +13,10 @@ import { uploadCV } from "../middlewares/uploadCV.js";
 
 
 const router = express.Router();
-router.post(
-  "/apply/:jobId",
-  auth,
-  uploadCV.single("cv"),
-  applyToJob
-);
+
 
 // Apply to a specific job
-router.post("/apply/:jobId", auth, applyToJob);
+router.post("/apply/:jobId", auth, uploadCV.single("cv"), applyToJob);
 
 // Logged-in user applications
 router.get("/", auth, getUserApplications);

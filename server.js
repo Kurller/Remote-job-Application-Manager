@@ -1,7 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import "./config/db.js";
+import { pool } from "./config/db.js";
 
 // Routes
 import authRoutes from "./routes/authRoutes.js";
@@ -14,9 +14,10 @@ import cvRoutes from "./routes/cvRoutes.js";
 dotenv.config();
 
 const app = express();
+const isProd = process.env.NODE_ENV === "production";
 
 /* =========================
-   TRUST PROXY (RENDER)
+   TRUST PROXY (Render)
 ========================= */
 app.set("trust proxy", 1);
 
@@ -25,13 +26,27 @@ app.set("trust proxy", 1);
 ========================= */
 app.use(express.json());
 
+/* =========================
+   CORS (Production Safe)
+========================= */
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      process.env.FRONTEND_URL, // e.g. https://your-app.vercel.app
-    ],
-    credentials: true, // safe even if not using cookies
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        "http://localhost:5173",
+        process.env.FRONTEND_URL,
+      ];
+
+      // Allow server-to-server or Postman
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      callback(new Error("CORS not allowed"));
+    },
+    credentials: true,
   })
 );
 
@@ -46,14 +61,29 @@ app.use("/candidates", candidateRoutes);
 app.use("/cvs", cvRoutes);
 
 /* =========================
-   HEALTH CHECK
+   HEALTH CHECK (RENDER)
+========================= */
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", uptime: process.uptime() });
+});
+
+/* =========================
+   ROOT
 ========================= */
 app.get("/", (req, res) => {
   res.json({ message: "Remote Job API is running 🚀" });
 });
 
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", time: new Date().toISOString() });
+/* =========================
+   GLOBAL ERROR HANDLER
+========================= */
+app.use((err, req, res, next) => {
+  console.error("❌ Server Error:", err.message);
+
+  res.status(500).json({
+    message: "Internal server error",
+    ...(isProd ? {} : { error: err.message, stack: err.stack }),
+  });
 });
 
 /* =========================
@@ -61,5 +91,5 @@ app.get("/health", (req, res) => {
 ========================= */
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT} (${isProd ? "production" : "development"})`);
 });

@@ -11,6 +11,8 @@ export const applyToJob = async (req, res) => {
   try {
     const userId = req.user.id;
     const jobId = parseInt(req.params.jobId, 10);
+    console.log("req.file:", req.file);
+    console.log("req.body:", req.body);
 
     if (!req.file) {
       return res.status(400).json({ message: "CV file is required" });
@@ -31,11 +33,12 @@ export const applyToJob = async (req, res) => {
 
     // Save CV
     const cvResult = await pool.query(
-  `INSERT INTO cvs (user_id, filename, path, mimetype)
+  `INSERT INTO cvs (user_id, filename, file_url, mimetype)
    VALUES ($1, $2, $3, $4)
    RETURNING id`,
   [userId, req.file.originalname, req.file.path, req.file.mimetype]
 );
+
 const cvId = cvResult.rows[0].id;
    // Insert application
     const appResult = await pool.query(
@@ -62,12 +65,12 @@ export const getAllApplications = async (req, res) => {
         a.status,
         a.applied_at,
         u.id AS user_id,
-        u.name AS user_name,
+        u.email AS user_name,
         j.id AS job_id,
         j.title AS job_title,
         c.id AS cv_id,
         c.filename AS cv_name,
-        c.path AS cv_file
+        c.file_url AS cv_file
       FROM applications a
       JOIN users u ON a.user_id = u.id
       JOIN jobs j ON a.job_id = j.id
@@ -81,7 +84,7 @@ export const getAllApplications = async (req, res) => {
       appliedAt: r.applied_at,
       user: {
         id: r.user_id,
-        name: r.user_name,
+        name: r.user_name, // now email will show
       },
       job: {
         id: r.job_id,

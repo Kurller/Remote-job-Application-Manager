@@ -1,3 +1,4 @@
+// middlewares/auth.js
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 
@@ -8,12 +9,12 @@ export default function auth(req, res, next) {
   try {
     let token = null;
 
-    // 1️⃣ From Authorization header
+    // From Authorization header
     if (req.headers.authorization?.startsWith("Bearer ")) {
       token = req.headers.authorization.split(" ")[1];
     }
 
-    // 2️⃣ From query param (for file viewing)
+    // From query param
     if (!token && req.query.token) {
       token = req.query.token;
     }
@@ -23,6 +24,10 @@ export default function auth(req, res, next) {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
+
+    if (!decoded.id || !decoded.email) {
+      return res.status(401).json({ message: "Invalid token payload" });
+    }
 
     req.user = {
       id: decoded.id,

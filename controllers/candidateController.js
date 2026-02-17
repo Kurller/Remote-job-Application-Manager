@@ -3,22 +3,36 @@ import { pool } from "../config/db.js";
 
 /* CREATE CANDIDATE */
 export const createCandidate = async (req, res) => {
-  const { name, email } = req.body;
-
-  if (!name || !email)
-    return res.status(400).json({ error: "Name and email required" });
-
   try {
+    const { first_name, last_name, email } = req.body;
+
+    if (!first_name || !last_name || !email) {
+      return res.status(400).json({
+        message: "first_name, last_name, and email are required",
+      });
+    }
+
     const result = await pool.query(
-      "INSERT INTO candidates (name, email) VALUES ($1, $2) RETURNING *",
-      [name, email]
+      `INSERT INTO candidates (first_name, last_name, email)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [first_name.trim(), last_name.trim(), email.toLowerCase()]
     );
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    // 🔑 Handle duplicate email
+    if (err.code === "23505") {
+      return res.status(409).json({
+        message: "Candidate with this email already exists",
+      });
+    }
+
     console.error("createCandidate error:", err.message);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ message: "Failed to create candidate" });
   }
 };
+
 
 /* GET ALL CANDIDATES */
 export const getCandidates = async (req, res) => {
