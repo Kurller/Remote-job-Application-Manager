@@ -29,22 +29,22 @@ app.use(express.json());
 /* =========================
    CORS (Production Safe)
 ========================= */
+
+
+// Get allowed origins from env variable
+const allowedOrigins = process.env.FRONTEND_URLS
+  ? process.env.FRONTEND_URLS.split(",")
+  : [];
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      const allowedOrigins = [
-        "http://localhost:5173",
-        process.env.FRONTEND_URL,
-      ];
-
-      // Allow server-to-server or Postman
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
+      // Allow requests with no origin (like Postman) or if origin is in the whitelist
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS policy: ${origin} is not allowed`));
       }
-
-      callback(new Error("CORS not allowed"));
     },
     credentials: true,
   })
