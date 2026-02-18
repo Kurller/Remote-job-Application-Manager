@@ -183,9 +183,18 @@ Return a concise professional summary.
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error("Tailored CV error:", err);
-    res.status(500).json({ message: "Failed to create tailored CV" });
-  }
+  console.error("❌ Tailored CV error:", {
+    message: err.message,
+    stack: err.stack,
+    response: err.response?.data,
+  });
+
+  res.status(500).json({
+    message: "Failed to create tailored CV",
+    error: err.message, // TEMPORARY (remove later)
+  });
+}
+
 };
 // GET all Tailored CVs for the logged-in user
 export const getUserCVs = async (req, res) => {
