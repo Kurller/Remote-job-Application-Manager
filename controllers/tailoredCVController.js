@@ -149,17 +149,25 @@ Return a concise professional summary.
     const pdfBytes = await pdfDoc.save();
 
     /* ================= UPLOAD PDF ================= */
-    const upload = await cloudinary.uploader.upload(
-      `data:application/pdf;base64,${Buffer.from(pdfBytes).toString("base64")}`,
-      {
-        folder: "tailored_cvs",
-        resource_type: "raw",
-        public_id: `tailored_cv_${userId}_${job_id}`,
-      }
-    );
+    const upload = await new Promise((resolve, reject) => {
+  const stream = cloudinary.uploader.upload_stream(
+    {
+      folder: "tailored_cvs",
+      resource_type: "raw",
+      public_id: `tailored_cv_${userId}_${job_id}`,
+    },
+    (error, result) => {
+      if (error) return reject(error);
+      resolve(result);
+    }
+  );
+
+  stream.end(pdfBytes);
+});
+
 
     const fileUrl = upload.secure_url;
-    const filename = `tailored_cv_${userId}_${job_id}.pdf`;
+    
 
     /* ================= DB SAVE ================= */
     let result;
