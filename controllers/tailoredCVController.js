@@ -6,6 +6,7 @@ import axios from "axios";
 
 export const createTailoredCV = async (req, res) => {
   try {
+    /* ================= AUTH ================= */
     const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -15,6 +16,8 @@ export const createTailoredCV = async (req, res) => {
     if (!cv_id || !job_id) {
       return res.status(400).json({ message: "cv_id and job_id are required" });
     }
+
+    const forceRegenerate = force === true || force === "true";
 
     /* ================= JOB ================= */
     const jobResult = await pool.query(
@@ -44,6 +47,12 @@ export const createTailoredCV = async (req, res) => {
     const basePdfResponse = await axios.get(baseCV.file_url, {
       responseType: "arraybuffer",
     });
+
+    const contentType = basePdfResponse.headers["content-type"];
+    if (!contentType || !contentType.includes("pdf")) {
+      return res.status(400).json({ message: "Base CV is not a valid PDF" });
+    }
+
     const basePdfBuffer = Buffer.from(basePdfResponse.data);
 
     /* ================= EXISTING CHECK ================= */
@@ -53,7 +62,7 @@ export const createTailoredCV = async (req, res) => {
       [cv_id, job_id, userId]
     );
 
-    if (existing.rows.length && existing.rows[0].ai_generated && !force) {
+    if (existing.rows.length && existing.rows[0].ai_generated && !forceRegenerate) {
       return res.status(200).json({
         message: "Tailored CV already exists",
         tailoredCV: existing.rows[0],
@@ -99,8 +108,7 @@ Return a concise professional summary.
         );
 
         aiSummary =
-          aiResponse.data?.choices?.[0]?.message?.content?.trim() ||
-          aiSummary;
+          aiResponse.data?.choices?.[0]?.message?.content?.trim() || aiSummary;
         aiGenerated = true;
       } catch (err) {
         console.error("AI error:", err.response?.data || err.message);
@@ -110,6 +118,7 @@ Return a concise professional summary.
     /* ================= GENERATE PDF ================= */
     const pdfDoc = await PDFDocument.load(basePdfBuffer);
     let page = pdfDoc.getPages()[0];
+
     const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
@@ -128,7 +137,6 @@ Return a concise professional summary.
       font: bold,
     });
 
-    /* === Text wrapping + pagination === */
     const lines = aiSummary.match(/.{1,90}/g) || [];
     let y = page.getHeight() - 110;
 
@@ -150,24 +158,22 @@ Return a concise professional summary.
 
     /* ================= UPLOAD PDF ================= */
     const upload = await new Promise((resolve, reject) => {
-  const stream = cloudinary.uploader.upload_stream(
-    {
-      folder: "tailored_cvs",
-      resource_type: "raw",
-      public_id: `tailored_cv_${userId}_${job_id}`,
-    },
-    (error, result) => {
-      if (error) return reject(error);
-      resolve(result);
-    }
-  );
-
-  stream.end(pdfBytes);
-});
-
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: "tailored_cvs",
+          resource_type: "raw",
+          public_id: `tailored_cv_${userId}_${job_id}_${Date.now()}`,
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result);
+        }
+      );
+      stream.end(pdfBytes);
+    });
 
     const fileUrl = upload.secure_url;
-    
+    const filename = `tailored_cv_${userId}_${job_id}.pdf`;
 
     /* ================= DB SAVE ================= */
     let result;
@@ -189,20 +195,19 @@ Return a concise professional summary.
       );
     }
 
-    res.status(201).json(result.rows[0]);
+    return res.status(201).json(result.rows[0]);
   } catch (err) {
-  console.error("❌ Tailored CV error:", {
-    message: err.message,
-    stack: err.stack,
-    response: err.response?.data,
-  });
+    console.error("❌ Tailored CV error:", {
+      message: err.message,
+      stack: err.stack,
+      response: err.response?.data,
+    });
 
-  res.status(500).json({
-    message: "Failed to create tailored CV",
-    error: err.message, // TEMPORARY (remove later)
-  });
-}
-
+    return res.status(500).json({
+      message: "Failed to create tailored CV",
+      error: err.message,
+    });
+  }
 };
 // GET all Tailored CVs for the logged-in user
 export const getUserCVs = async (req, res) => {
