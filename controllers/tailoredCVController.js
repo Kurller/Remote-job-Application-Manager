@@ -19,6 +19,8 @@ export const createTailoredCV = async (req, res) => {
 
     const forceRegenerate = force === true || force === "true";
 
+    console.log("Creating tailored CV:", { userId, cv_id, job_id, forceRegenerate });
+
     /* ================= JOB ================= */
     const jobResult = await pool.query(
       "SELECT title, description FROM jobs WHERE id=$1",
@@ -28,6 +30,7 @@ export const createTailoredCV = async (req, res) => {
       return res.status(404).json({ message: "Job not found" });
     }
     const job = jobResult.rows[0];
+    console.log("Job found:", job.title);
 
     /* ================= BASE CV ================= */
     const cvResult = await pool.query(
@@ -37,16 +40,14 @@ export const createTailoredCV = async (req, res) => {
     if (!cvResult.rows.length) {
       return res.status(404).json({ message: "Base CV not found" });
     }
-
     const baseCV = cvResult.rows[0];
     if (!baseCV.file_url) {
       return res.status(400).json({ message: "CV file_url missing" });
     }
+    console.log("Base CV URL:", baseCV.file_url);
 
     /* ================= FETCH PDF ================= */
-    const basePdfResponse = await axios.get(baseCV.file_url, {
-      responseType: "arraybuffer",
-    });
+    const basePdfResponse = await axios.get(baseCV.file_url, { responseType: "arraybuffer" });
 
     const contentType = basePdfResponse.headers["content-type"];
     if (!contentType || !contentType.includes("pdf")) {
@@ -54,15 +55,16 @@ export const createTailoredCV = async (req, res) => {
     }
 
     const basePdfBuffer = Buffer.from(basePdfResponse.data);
+    console.log("Base PDF size:", basePdfBuffer.length);
 
     /* ================= EXISTING CHECK ================= */
     const existing = await pool.query(
-      `SELECT * FROM tailored_cvs
-       WHERE cv_id=$1 AND job_id=$2 AND user_id=$3`,
+      `SELECT * FROM tailored_cvs WHERE cv_id=$1 AND job_id=$2 AND user_id=$3`,
       [cv_id, job_id, userId]
     );
 
     if (existing.rows.length && existing.rows[0].ai_generated && !forceRegenerate) {
+      console.log("Existing tailored CV found, skipping regeneration");
       return res.status(200).json({
         message: "Tailored CV already exists",
         tailoredCV: existing.rows[0],
@@ -70,13 +72,18 @@ export const createTailoredCV = async (req, res) => {
     }
 
     /* ================= EXTRACT TEXT ================= */
-    const parsed = await pdfParse(basePdfBuffer);
-    const baseText = parsed.text?.slice(0, 1500) || "";
+    let baseText = "";
+    try {
+      const parsed = await pdfParse(basePdfBuffer);
+      baseText = parsed.text?.slice(0, 1500) || "";
+    } catch (err) {
+      console.warn("Failed to parse PDF text, proceeding without AI summary");
+    }
 
     let aiSummary = "AI summary not generated.";
     let aiGenerated = false;
 
-    if (baseText.trim() && process.env.OPENROUTER_API_KEY) {
+    if (baseText && process.env.OPENROUTER_API_KEY) {
       try {
         const aiResponse = await axios.post(
           "https://openrouter.ai/api/v1/chat/completions",
@@ -106,12 +113,11 @@ Return a concise professional summary.
             },
           }
         );
-
         aiSummary =
           aiResponse.data?.choices?.[0]?.message?.content?.trim() || aiSummary;
         aiGenerated = true;
       } catch (err) {
-        console.error("AI error:", err.response?.data || err.message);
+        console.warn("AI generation failed, using fallback summary:", err.message);
       }
     }
 
@@ -145,32 +151,33 @@ Return a concise professional summary.
         page = pdfDoc.addPage();
         y = page.getHeight() - 50;
       }
-      page.drawText(line, {
-        x: 50,
-        y,
-        size: 12,
-        font: regular,
-      });
+      page.drawText(line, { x: 50, y, size: 12, font: regular });
       y -= 16;
     }
 
     const pdfBytes = await pdfDoc.save();
 
     /* ================= UPLOAD PDF ================= */
-    const upload = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          folder: "tailored_cvs",
-          resource_type: "raw",
-          public_id: `tailored_cv_${userId}_${job_id}_${Date.now()}`,
-        },
-        (error, result) => {
-          if (error) return reject(error);
-          resolve(result);
-        }
-      );
-      stream.end(pdfBytes);
-    });
+    let upload;
+    try {
+      upload = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder: "tailored_cvs",
+            resource_type: "raw",
+            public_id: `tailored_cv_${userId}_${job_id}_${Date.now()}`,
+          },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+        stream.end(pdfBytes);
+      });
+    } catch (err) {
+      console.error("Cloudinary upload failed:", err.message);
+      return res.status(500).json({ message: "Failed to upload PDF", error: err.message });
+    }
 
     const fileUrl = upload.secure_url;
     const filename = `tailored_cv_${userId}_${job_id}.pdf`;
@@ -195,20 +202,19 @@ Return a concise professional summary.
       );
     }
 
+    console.log("Tailored CV saved successfully:", filename);
     return res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error("❌ Tailored CV error:", {
-      message: err.message,
-      stack: err.stack,
-      response: err.response?.data,
-    });
-
+    console.error("❌ Tailored CV full error:", err);
     return res.status(500).json({
-      message: "Failed to create tailored CV",
+      message: "Failed to generate tailored CV",
       error: err.message,
+      stack: err.stack?.split("\n").slice(0, 5),
+      response: err.response?.data,
     });
   }
 };
+
 // GET all Tailored CVs for the logged-in user
 export const getUserCVs = async (req, res) => {
   try {
