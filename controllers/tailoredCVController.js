@@ -65,11 +65,18 @@ export const createTailoredCV = async (req, res) => {
       });
 
       const contentType = pdfResponse.headers["content-type"];
-      console.log("📦 PDF content-type:", contentType);
+console.log("📦 PDF content-type:", contentType);
 
-      if (!contentType?.includes("pdf")) {
-        throw new Error("File is not a PDF");
-      }
+// Accept Cloudinary raw PDFs
+const allowedTypes = [
+  "application/pdf",
+  "application/octet-stream"
+];
+
+if (!allowedTypes.includes(contentType)) {
+  throw new Error(`Unsupported file type: ${contentType}`);
+}
+
 
       basePdfBuffer = Buffer.from(pdfResponse.data);
       console.log("✅ PDF downloaded, size:", basePdfBuffer.length);
@@ -198,6 +205,7 @@ export const createTailoredCV = async (req, res) => {
           {
             folder: "tailored_cvs",
             resource_type: "raw",
+            access_mode: "public",
             public_id: `tailored_cv_${userId}_${job_id}_${Date.now()}`,
           },
           (error, result) => {
