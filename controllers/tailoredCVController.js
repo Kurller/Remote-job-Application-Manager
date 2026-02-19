@@ -203,7 +203,7 @@ if (!allowedTypes.includes(contentType)) {
       upload = await new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           {
-            folder: "tailored_cvs",
+            folder: "cvs",
             resource_type: "raw",
             access_mode: "public",
             public_id: `tailored_cv_${userId}_${job_id}_${Date.now()}`,
