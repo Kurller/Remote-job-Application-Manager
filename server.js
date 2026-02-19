@@ -93,3 +93,4 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT} (${isProd ? "production" : "development"})`);
 });
+console.log("🔑 OPENROUTER_API_KEY:", process.env.OPENROUTER_API_KEY ? "Detected ✅" : "Missing ❌");
