@@ -1,166 +1,260 @@
+import { pool } from "../config/db.js";
+import cloudinary from "../config/cloudinary.js";
+import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import pdfParse from "pdf-parse";
 import axios from "axios";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import pool from "../db/index.js";
-import { extractPdfText } from "../utils/pdfText.js";
-import { generateTailoredPdf } from "../utils/pdfGenerator.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 export const createTailoredCV = async (req, res) => {
+  console.log("🚀 createTailoredCV started");
+
   try {
-    console.log("📥 Incoming request body:", req.body);
-
+    /* ================= AUTH ================= */
     const userId = req.user?.id;
-    const { baseCvId, jobTitle, jobDescription } = req.body;
-
-    /* ------------------ VALIDATION ------------------ */
     if (!userId) {
+      console.error("❌ Unauthorized access");
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    if (!baseCvId) {
-      return res.status(400).json({ message: "Base CV ID is required" });
+    const { cv_id, job_id, force } = req.body;
+    const forceRegenerate = force === true || force === "true";
+
+    console.log("📥 Input:", { userId, cv_id, job_id, forceRegenerate });
+
+    if (!cv_id || !job_id) {
+      return res.status(400).json({ message: "cv_id and job_id are required" });
     }
 
-    if (!jobTitle || !jobTitle.trim()) {
-      return res.status(400).json({ message: "Job title is required" });
+    /* ================= JOB ================= */
+    const jobResult = await pool.query(
+      "SELECT title, description FROM jobs WHERE id=$1",
+      [job_id]
+    );
+
+    if (!jobResult.rows.length) {
+      console.error("❌ Job not found:", job_id);
+      return res.status(404).json({ message: "Job not found" });
     }
 
-    if (!jobDescription || !jobDescription.trim()) {
-      return res.status(400).json({ message: "Job description is required" });
-    }
+    const job = jobResult.rows[0];
+    console.log("✅ Job loaded:", job.title);
 
-    /* ------------------ FETCH BASE CV ------------------ */
+    /* ================= BASE CV ================= */
     const cvResult = await pool.query(
-      `SELECT file_url FROM cvs WHERE id = $1 AND user_id = $2`,
-      [baseCvId, userId]
+      "SELECT filename, file_url FROM cvs WHERE id=$1 AND user_id=$2",
+      [cv_id, userId]
     );
 
     if (!cvResult.rows.length) {
+      console.error("❌ Base CV not found:", cv_id);
       return res.status(404).json({ message: "Base CV not found" });
     }
 
-    const baseCvUrl = cvResult.rows[0].file_url;
+    const baseCV = cvResult.rows[0];
+    console.log("📄 Base CV URL:", baseCV.file_url);
 
-    /* ------------------ DOWNLOAD BASE CV ------------------ */
-    let response;
-    try {
-      response = await axios.get(baseCvUrl, { responseType: "arraybuffer" });
-    } catch (err) {
-      console.error("❌ Failed to fetch base CV PDF:", err.message);
-      return res.status(500).json({ message: "Failed to fetch base CV PDF" });
+    if (!baseCV.file_url) {
+      return res.status(400).json({ message: "CV file_url missing" });
     }
 
-    const tempDir = path.join(__dirname, "../tmp");
-    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+    /* ================= FETCH PDF ================= */
+    let basePdfBuffer;
+    try {
+      const pdfResponse = await axios.get(baseCV.file_url, {
+        responseType: "arraybuffer",
+        timeout: 15000,
+      });
 
-    const tempPdfPath = path.join(tempDir, `base_cv_${Date.now()}.pdf`);
-    fs.writeFileSync(tempPdfPath, response.data);
+      const contentType = pdfResponse.headers["content-type"];
+console.log("📦 PDF content-type:", contentType);
 
-    /* ------------------ EXTRACT TEXT ------------------ */
-    const baseText = await extractPdfText(tempPdfPath);
-    fs.unlinkSync(tempPdfPath);
+// Accept Cloudinary raw PDFs
+const allowedTypes = [
+  "application/pdf",
+  "application/octet-stream"
+];
 
-    if (!baseText || !baseText.trim()) {
+if (!allowedTypes.includes(contentType)) {
+  throw new Error(`Unsupported file type: ${contentType}`);
+}
+
+
+      basePdfBuffer = Buffer.from(pdfResponse.data);
+      console.log("✅ PDF downloaded, size:", basePdfBuffer.length);
+    } catch (err) {
+      console.error("❌ Failed to fetch base PDF:", err.message);
       return res.status(400).json({
-        message: "Failed to extract text from base CV"
+        message: "Failed to fetch base CV PDF",
+        error: err.message,
       });
     }
 
-    /* ------------------ AI SUMMARY ------------------ */
-    let aiSummary = null;
+    /* ================= EXISTING CHECK ================= */
+    const existing = await pool.query(
+      `SELECT * FROM tailored_cvs
+       WHERE cv_id=$1 AND job_id=$2 AND user_id=$3`,
+      [cv_id, job_id, userId]
+    );
 
-    if (!process.env.OPENROUTER_API_KEY) {
-      console.error("❌ OPENROUTER_API_KEY missing in production");
-    } else {
+    if (existing.rows.length && existing.rows[0].ai_generated && !forceRegenerate) {
+      console.log("♻️ Reusing existing tailored CV");
+      return res.status(200).json({
+        message: "Tailored CV already exists",
+        tailoredCV: existing.rows[0],
+      });
+    }
+
+    /* ================= PDF TEXT EXTRACTION ================= */
+    let baseText = "";
+    try {
+      const parsed = await pdfParse(basePdfBuffer);
+      baseText = parsed.text?.slice(0, 1500) || "";
+      console.log("📝 Extracted text length:", baseText.length);
+    } catch (err) {
+      console.error("⚠️ PDF parse failed:", err.message);
+    }
+
+    /* ================= AI SUMMARY ================= */
+    let aiSummary = "Professional summary not generated.";
+    let aiGenerated = false;
+
+    if (baseText.trim() && process.env.OPENROUTER_API_KEY) {
       try {
+        console.log("🤖 Calling OpenRouter AI");
+
         const aiResponse = await axios.post(
           "https://openrouter.ai/api/v1/chat/completions",
           {
-            model: "openai/gpt-4o-mini",
+            model: "openai/gpt-3.5-turbo",
             messages: [
               {
-                role: "system",
-                content: "You are a professional CV writer."
-              },
-              {
                 role: "user",
-                content: `
-Generate a professional CV summary tailored for the role below.
-
-Job Title: ${jobTitle}
-Job Description: ${jobDescription}
-
-Candidate CV:
-${baseText}
-
-Keep it concise and impactful.
-                `
-              }
-            ]
+                content: `Tailor this CV for the job.\n\nJob: ${job.title}\nDescription: ${job.description}\nCV:\n${baseText}`,
+              },
+            ],
+            max_tokens: 700,
+            temperature: 0.7,
           },
           {
             headers: {
               Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-              "Content-Type": "application/json"
-            }
+              "Content-Type": "application/json",
+            },
+            timeout: 20000,
           }
         );
 
         aiSummary =
-          aiResponse.data?.choices?.[0]?.message?.content?.trim() || null;
+          aiResponse.data?.choices?.[0]?.message?.content?.trim() ||
+          aiSummary;
+
+        aiGenerated = true;
+        console.log("✅ AI summary generated");
       } catch (err) {
-        console.error("⚠️ AI summary generation failed:", err.message);
+        console.error("⚠️ AI failed (continuing):", err.message);
       }
     }
 
-    /* ------------------ PDF GENERATION ------------------ */
-    const pdfFilename = `tailored_cv_${userId}_${Date.now()}.pdf`;
-    const pdfPath = path.join(__dirname, "../uploads/tailored-cvs");
+    /* ================= PDF GENERATION ================= */
+    let pdfBytes;
+    try {
+      const pdfDoc = await PDFDocument.load(basePdfBuffer);
+      let page = pdfDoc.getPages()[0];
 
-    if (!fs.existsSync(pdfPath)) fs.mkdirSync(pdfPath, { recursive: true });
+      const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const regular = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-    const finalPdfPath = path.join(pdfPath, pdfFilename);
+      page.drawText(`Tailored for: ${job.title}`, {
+        x: 50,
+        y: page.getHeight() - 50,
+        size: 18,
+        font: bold,
+        color: rgb(0, 0.2, 0.8),
+      });
 
-    await generateTailoredPdf({
-      outputPath: finalPdfPath,
-      jobTitle,
-      aiSummary: aiSummary || "Professional summary not generated.",
-      baseText
-    });
+      page.drawText("Professional Summary:", {
+        x: 50,
+        y: page.getHeight() - 80,
+        size: 14,
+        font: bold,
+      });
 
-    /* ------------------ SAVE TO DB ------------------ */
-    const insertResult = await pool.query(
-      `
-      INSERT INTO tailored_cvs (user_id, base_cv_id, job_title, file_url)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, file_url
-      `,
-      [
-        userId,
-        baseCvId,
-        jobTitle,
-        `${process.env.BASE_URL}/uploads/tailored-cvs/${pdfFilename}`
-      ]
-    );
+      const lines = aiSummary.match(/.{1,90}/g) || [];
+      let y = page.getHeight() - 110;
 
-    /* ------------------ SUCCESS ------------------ */
-    return res.status(201).json({
-      message: "Tailored CV generated successfully",
-      tailoredCv: insertResult.rows[0]
-    });
-  } catch (error) {
-    console.error("🔥 Fatal error creating tailored CV:", error);
+      for (const line of lines) {
+        if (y < 50) {
+          page = pdfDoc.addPage();
+          y = page.getHeight() - 50;
+        }
+        page.drawText(line, { x: 50, y, size: 12, font: regular });
+        y -= 16;
+      }
+
+      pdfBytes = await pdfDoc.save();
+      console.log("✅ PDF generated, bytes:", pdfBytes.length);
+    } catch (err) {
+      console.error("❌ PDF generation failed:", err.message);
+      throw err;
+    }
+
+    /* ================= CLOUDINARY UPLOAD ================= */
+    let upload;
+    try {
+      upload = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder: "cvs",
+            resource_type: "raw",
+            access_mode: "public",
+            public_id: `tailored_cv_${userId}_${job_id}_${Date.now()}`,
+          },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+        stream.end(pdfBytes);
+      });
+
+      console.log("☁️ Uploaded to Cloudinary:", upload.secure_url);
+    } catch (err) {
+      console.error("❌ Cloudinary upload failed:", err.message);
+      throw err;
+    }
+
+    /* ================= DB SAVE ================= */
+    const filename = `tailored_cv_${userId}_${job_id}.pdf`;
+    let result;
+
+    if (existing.rows.length) {
+      result = await pool.query(
+        `UPDATE tailored_cvs
+         SET file_url=$1, ai_summary=$2, ai_generated=$3, regenerated_at=NOW()
+         WHERE id=$4
+         RETURNING *`,
+        [upload.secure_url, aiSummary, aiGenerated, existing.rows[0].id]
+      );
+    } else {
+      result = await pool.query(
+        `INSERT INTO tailored_cvs
+         (user_id, filename, file_url, cv_id, job_id, ai_summary, ai_generated)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         RETURNING *`,
+        [userId, filename, upload.secure_url, cv_id, job_id, aiSummary, aiGenerated]
+      );
+    }
+
+    console.log("🎉 Tailored CV created successfully");
+    return res.status(201).json(result.rows[0]);
+
+  } catch (err) {
+    console.error("🔥 FINAL FAILURE:", err);
     return res.status(500).json({
-      message: "Failed to generate tailored CV"
+      message: "Failed to generate tailored CV",
+      error: err.message,
     });
   }
 };
-
-
 
 
 // GET all Tailored CVs for the logged-in user
