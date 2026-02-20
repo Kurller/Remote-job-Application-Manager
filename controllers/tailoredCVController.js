@@ -301,22 +301,24 @@ export const getUserCVs = async (req, res) => {
 
 export const downloadTailoredCV = async (req, res) => {
   try {
-    const userId = req.user.id;
     const { id } = req.params;
+    const userId = req.user?.id;
+
+    console.log("DOWNLOAD PARAM ID:", id); // Must NOT be undefined
+    console.log("USER ID:", userId);
+
+    if (!id) return res.status(400).json({ message: "CV id is missing" });
 
     const result = await pool.query(
-      "SELECT filename, file_url FROM tailored_cvs WHERE id=$1 AND user_id=$2",
-      [id, userId]
+      "SELECT file_url, filename FROM tailored_cvs WHERE id=$1 AND user_id=$2",
+      [Number(id), userId] // convert to integer
     );
 
-    if (!result.rows.length) {
-      return res.status(404).json({ message: "Tailored CV not found" });
-    }
+    if (!result.rows.length) return res.status(404).json({ message: "Tailored CV not found" });
 
-    const { file_url } = result.rows[0];
+    // Redirect to Cloudinary URL
+    return res.redirect(result.rows[0].file_url);
 
-    // 🔥 Let Cloudinary handle the download
-    return res.redirect(file_url);
   } catch (err) {
     console.error("Download error:", err);
     res.status(500).json({ message: "Failed to download tailored CV" });
