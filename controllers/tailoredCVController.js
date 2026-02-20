@@ -191,10 +191,17 @@ export const downloadTailoredCV = async (req, res) => {
       [Number(id), userId]
     );
 
-    if (!result.rows.length) return res.status(404).json({ message: "Tailored CV not found" });
+    if (!result.rows.length)
+      return res.status(404).json({ message: "Tailored CV not found" });
 
-    // Redirect directly to Cloudinary URL for download
-    return res.redirect(result.rows[0].file_url);
+    const { file_url, filename } = result.rows[0];
+
+    const response = await axios.get(file_url, { responseType: "stream" });
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Type", "application/pdf");
+
+    response.data.pipe(res); // stream PDF to browser
   } catch (err) {
     console.error("Download error:", err);
     res.status(500).json({ message: "Failed to download tailored CV" });
