@@ -181,29 +181,44 @@ export const getUserCVs = async (req, res) => {
 ========================= */
 export const downloadTailoredCV = async (req, res) => {
   try {
-    const { id } = req.params;
+    const rawId = req.params.id;
     const userId = req.user?.id;
 
-    if (!id) return res.status(400).json({ message: "CV id is missing" });
+    console.log("DOWNLOAD RAW ID:", rawId);
+    console.log("USER ID:", userId);
+
+    const cvId = Number(rawId);
+
+    // 🔥 HARD GUARD — THIS FIXES YOUR ERROR
+    if (!Number.isInteger(cvId)) {
+      console.error("❌ INVALID CV ID:", rawId);
+      return res.status(400).json({ message: "Invalid CV ID" });
+    }
 
     const result = await pool.query(
       "SELECT file_url, filename FROM tailored_cvs WHERE id=$1 AND user_id=$2",
-      [Number(id), userId]
+      [cvId, userId]
     );
 
-    if (!result.rows.length)
+    if (!result.rows.length) {
       return res.status(404).json({ message: "Tailored CV not found" });
+    }
 
     const { file_url, filename } = result.rows[0];
 
-    const response = await axios.get(file_url, { responseType: "stream" });
+    const response = await axios.get(file_url, {
+      responseType: "stream",
+    });
 
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${filename || "tailoredCV.pdf"}"`
+    );
     res.setHeader("Content-Type", "application/pdf");
 
-    response.data.pipe(res); // stream PDF to browser
+    response.data.pipe(res);
   } catch (err) {
-    console.error("Download error:", err);
+    console.error("❌ Download error:", err);
     res.status(500).json({ message: "Failed to download tailored CV" });
   }
 };
