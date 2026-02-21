@@ -243,14 +243,8 @@ export const downloadTailoredCV = async (req, res) => {
     const rawId = req.params.id;
     const userId = req.user?.id;
 
-    console.log("DOWNLOAD RAW ID:", rawId);
-    console.log("USER ID:", userId);
-
     const cvId = Number(rawId);
-
-    // 🔥 HARD GUARD — THIS FIXES YOUR ERROR
     if (!Number.isInteger(cvId)) {
-      console.error("❌ INVALID CV ID:", rawId);
       return res.status(400).json({ message: "Invalid CV ID" });
     }
 
@@ -265,9 +259,7 @@ export const downloadTailoredCV = async (req, res) => {
 
     const { file_url, filename } = result.rows[0];
 
-    const response = await axios.get(file_url, {
-      responseType: "stream",
-    });
+    const response = await axios.get(file_url, { responseType: "stream" });
 
     res.setHeader(
       "Content-Disposition",
