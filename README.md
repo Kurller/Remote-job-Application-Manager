@@ -24,7 +24,11 @@ CORS: Only allows origins in FRONTEND_URLS
 
 Trust Proxy: Required for Render deployment
 
-3.Routes Overview
+3.Login as an Administrator:
+Email:admin@gmail.com
+password:123456
+
+4.Routes Overview
 | Route           | Description                               |
 | --------------- | ----------------------------------------- |
 | `/auth`         | Login, register, refresh token            |
@@ -37,7 +41,7 @@ Trust Proxy: Required for Render deployment
 | `/health`       | Health check (Render compatible)          |
 
 
-4.Tailored CV Download
+5.Tailored CV Download
 
 Endpoint: GET /tailored-cvs/download/:id
 
@@ -45,7 +49,7 @@ Auth Required: Yes
 
 Behavior: Streams the PDF file from Cloudinary or storage to the frontend.
 
-5. Local Development
+6. Local Development
 # Install dependencies
 npm install
 
@@ -54,7 +58,7 @@ npm run dev    # if you have nodemon
 # or
 node server.js
 
-6.Docker Setup
+7.Docker Setup
 FROM node:20-alpine
 WORKDIR /usr/src/app
 COPY package*.json ./
@@ -63,11 +67,11 @@ COPY . .
 EXPOSE 10000
 CMD ["node", "server.js"]
 
-7.Build & run locally:
+8.Build & run locally:
 docker build -t remote-job-backend .
 docker run -p 10000:10000 --env-file .env remote-job-backend
 
-8.Render Deployment
+9.Render Deployment
 
 Create a new Web Service in Render.
 
@@ -81,7 +85,7 @@ Expose port 10000.
 
 Use /health endpoint to confirm service is running.
 
-9.Logging & Debugging
+10.Logging & Debugging
 
 Logs are printed to console:
 
@@ -93,7 +97,7 @@ CV download errors
 
 Stack traces appear only in development mode (NODE_ENV=development).
 
-10.Summary
+11.Summary
 
 Backend is Node.js + Express with PostgreSQL.
 
