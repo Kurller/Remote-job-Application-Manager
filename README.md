@@ -1,115 +1,295 @@
-1.Project Structure
-remote-job-manager/
-├── config/
-│   └── db.js             
-├── controllers/
-├── middlewares/
-├── routes/
-│   ├── authRoutes.js
-│   ├── jobRoutes.js
-│   ├── applicationRoutes.js
-│   ├── tailoredCVRoutes.js
-│   ├── candidateRoutes.js
-│   └── cvRoutes.js
-├── package.json
-├── Dockerfile
-├── server.js
-└── .env
+# Remote Job Application Manager (Backend)
 
-2.Middleware & Features
+The backend service for the **Remote Job Application Manager** application. It provides RESTful APIs for authentication, job management, job applications, and CV handling. The backend is built with Node.js and Express, uses PostgreSQL for data persistence, and integrates Cloudinary for CV storage.
 
-JSON Parsing: express.json() for request bodies
+---
 
-CORS: Only allows origins in FRONTEND_URLS
+## 🚀 Features
 
-Trust Proxy: Required for Render deployment
+* **JWT Authentication** (Access & Refresh tokens)
+* **Role-based access control** (User / Admin)
+* **Job management APIs**
+* **Job application tracking**
+* **CV upload & secure download (PDF)**
+* **PostgreSQL database integration**
+* **Production-ready deployment on Render**
 
-3.Project Link:https://remote-job-application-manager-1.onrender.com
+---
 
-4.Login as an Administrator:
-Email:admin@gmail.com
-password:123456
+## 🧱 Tech Stack
 
-5.Routes Overview
-| Route           | Description                               |
-| --------------- | ----------------------------------------- |
-| `/auth`         | Login, register, refresh token            |
-| `/jobs`         | List, create, update, delete job postings |
-| `/applications` | Submit applications                       |
-| `/tailored-cvs` | Generate, list, and download tailored CVs |
-| `/candidates`   | Manage candidate profiles                 |
-| `/cvs`          | Upload and manage CVs                     |
-| `/`             | Root message                              |
-| `/health`       | Health check (Render compatible)          |
+* **Node.js**
+* **Express.js**
+* **PostgreSQL** (Render managed database)
+* **JWT** (jsonwebtoken)
+* **Cloudinary** (file storage for CVs)
+* **Multer** (file uploads)
+* **dotenv** (environment variables)
+
+---
+
+## 📁 Project Structure
+
+```text
+backend/
+│── controllers/
+│   ├── auth.controller.js
+│   ├── job.controller.js
+│   ├── application.controller.js
+│   ├── cvController.js
+    ├── TailoredCVController.js
+│
+│── middleware/
+│   ├── auth.middleware.js
+│   ├── admin.middleware.js
+│
+│── routes/
+│   ├── auth.routes.js
+│   ├── job.routes.js
+│   ├── application.routes.js
+│   ├── cvRoutes.js
+    ├── TailoredCVRoutes.js
+│
+│── config/
+│   ├── db.js
+│   ├── cloudinary.js
+│
+│── utils/
+│   ├── uploadBufferToCloudinary.js
+│
+│── server.js
+│── package.json
+│── .env
+```
+
+---
+
+## 🔐 Authentication Flow
+
+1. User registers or logs in
+2. Backend validates credentials
+3. JWT access token is issued
+4. Token is required in the `Authorization` header:
+
+```http
+Authorization: Bearer <token>
+```
+
+5. Protected routes validate token via middleware
+
+---
+
+## 🚦 Roles & Permissions
+
+### User
+
+* Register & login
+* View available jobs
+* Apply for jobs
+* Upload CV
+* Download own CV
+
+### Admin
+
+* View all job applications
+* Review and track application status
+* Download any submitted CV
+
+Role checks are enforced via middleware.
+
+---
+
+## 📡 API Endpoints
+
+### 🔑 Auth
+
+```http
+POST /auth/register
+POST /auth/login
+POST /auth/refresh-token
+```
+
+### 💼 Jobs
+
+```http
+GET  /jobs
+POST /jobs            (admin)
+```
+
+### 📄 Applications
+
+```http
+POST /applications
+GET  /applications/user
+GET  /applications/all    (admin)
+```
+
+### 📎 CVs
+
+```http
+POST /cvs/upload
+GET  /cvs/download/:id
+```
+### 📎 TailoredCVs
+
+```http
+POST /tailored-cvs
+GET  /tailored-cvs/download/:id
+GET /tailored-cvs
+```
+---
+
+## 🧪 Database Schema (Overview)
+
+### users
+
+* id
+* name
+* email
+* password
+* role
+* created_at
+
+### jobs
+
+* id
+* title
+* company
+* description
+
+### applications
+
+* id
+* user_id
+* job_id
+* cv_id
+* status
+* applied_at
+
+### cvs
+
+* id
+* user_id
+* filename
+* file_url
+* created_at
+
+---
+
+## ⚙️ Environment Variables
+
+Create a `.env` file in the backend root:
+
+```env
+# =========================
+# Server / Deployment
+# =========================
+PORT=10000
+NODE_ENV=production
+FRONTEND_URLS=http://localhost:5173,https://remote-job-frontend.vercel.app
 
 
-6.Tailored CV Download
+# =========================
+# Database (Render.com Postgres)
+# =========================
+DATABASE_URL=postgresql://remote_job_user:******
 
-Endpoint: GET /tailored-cvs/download/:id
+# =========================
+# JWT Secrets
+# =========================
+JWT_SECRET=*****
+JWT_REFRESH_SECRET=*****
 
-Auth Required: Yes
+# =========================
+# OpenRouter / Tailored CV
+# =========================
+OPENROUTER_API_KEY=sK-*******
+TAILORED_CV_LAMBDA_URL=*****
 
-Behavior: Streams the PDF file from Cloudinary or storage to the frontend.
+# =========================
+# Cloudinary Configuration
+# =========================
+CLOUDINARY_CLOUD_NAME=****
+CLOUDINARY_API_KEY=******
+CLOUDINARY_API_SECRET=S_*****
 
-7. Local Development
-# Install dependencies
+```
+
+---
+
+## 🧪 Running Locally
+Clone the repository
+
+git clone https://github.com/Kurller/Remote-job-Application-Manager.git
+
+cd Remote-job-Application-Manager
+
+### 1️⃣ Install dependencies
+
+```bash
 npm install
+```
 
-# Run in development
-npm run dev    # if you have nodemon
-# or
+### 2️⃣ Start the server
+
+```bash
+npm run dev
+```
+
+Server runs on:
+
+```text
+http://localhost:3000
+```
+
+---
+
+## 🚀 Deployment (Render)
+
+1. Create a **Web Service** on Render
+2. Connect your GitHub repository
+3. Set build command:
+
+```bash
+npm install
+```
+
+4. Set start command:
+
+```bash
 node server.js
+```
 
-8.Docker Setup
-FROM node:20-alpine
-WORKDIR /usr/src/app
-COPY package*.json ./
-RUN npm install --production
-COPY . .
-EXPOSE 10000
-CMD ["node", "server.js"]
+5. Add environment variables in Render dashboard
+6. Deploy 🎉
 
-9.Build & run locally:
-docker build -t remote-job-backend .
-docker run -p 10000:10000 --env-file .env remote-job-backend
+---
 
-10.Render Deployment
+## 🔒 Security Notes
 
-Create a new Web Service in Render.
+* Passwords are hashed before storage
+* JWT secrets must never be committed
+* HTTPS is required in production
+* File uploads are validated before processing
 
-Connect your GitHub repository.
+---
 
-Select Docker deployment.
+## 🛣️ Roadmap
 
-Set environment variables as above.
+* Application status updates
+* Admin analytics
+* API rate limiting
+* Automated tests
 
-Expose port 10000.
+---
 
-Use /health endpoint to confirm service is running.
+## 👨‍💻 Author
 
-11.Logging & Debugging
+**Remote Job Application Manager – Backend**
 
-Logs are printed to console:
+Built with Node.js, Express, and PostgreSQL.
 
-Server start
+Kolawole Oladejo
+---
 
-OPENROUTER_API_KEY detection
 
-CV download errors
-
-Stack traces appear only in development mode (NODE_ENV=development).
-
-12.Summary
-
-Backend is Node.js + Express with PostgreSQL.
-
-Fully Dockerized and Render-ready.
-
-Handles AI-tailored CVs, job applications, and candidate management.
-
-Secure with CORS whitelist and auth middleware.
-
-Health check endpoint makes it easy to monitor uptime on Render.
-Important: id must be a valid integer; otherwise returns 400 Invalid CV ID.Global Error Handler: Returns stack trace in development
-
-Health Check: /health endpoint for uptime monitoring
