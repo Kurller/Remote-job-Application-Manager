@@ -24,11 +24,13 @@ CORS: Only allows origins in FRONTEND_URLS
 
 Trust Proxy: Required for Render deployment
 
-3.Login as an Administrator:
+3.Project Link:https://remote-job-application-manager-1.onrender.com
+
+4.Login as an Administrator:
 Email:admin@gmail.com
 password:123456
 
-4.Routes Overview
+5.Routes Overview
 | Route           | Description                               |
 | --------------- | ----------------------------------------- |
 | `/auth`         | Login, register, refresh token            |
@@ -41,7 +43,7 @@ password:123456
 | `/health`       | Health check (Render compatible)          |
 
 
-5.Tailored CV Download
+6.Tailored CV Download
 
 Endpoint: GET /tailored-cvs/download/:id
 
@@ -49,7 +51,7 @@ Auth Required: Yes
 
 Behavior: Streams the PDF file from Cloudinary or storage to the frontend.
 
-6. Local Development
+7. Local Development
 # Install dependencies
 npm install
 
@@ -58,7 +60,7 @@ npm run dev    # if you have nodemon
 # or
 node server.js
 
-7.Docker Setup
+8.Docker Setup
 FROM node:20-alpine
 WORKDIR /usr/src/app
 COPY package*.json ./
@@ -67,11 +69,11 @@ COPY . .
 EXPOSE 10000
 CMD ["node", "server.js"]
 
-8.Build & run locally:
+9.Build & run locally:
 docker build -t remote-job-backend .
 docker run -p 10000:10000 --env-file .env remote-job-backend
 
-9.Render Deployment
+10.Render Deployment
 
 Create a new Web Service in Render.
 
@@ -85,7 +87,7 @@ Expose port 10000.
 
 Use /health endpoint to confirm service is running.
 
-10.Logging & Debugging
+11.Logging & Debugging
 
 Logs are printed to console:
 
@@ -97,7 +99,7 @@ CV download errors
 
 Stack traces appear only in development mode (NODE_ENV=development).
 
-11.Summary
+12.Summary
 
 Backend is Node.js + Express with PostgreSQL.
 
