@@ -45,7 +45,7 @@ app.use(
 // ================= CORS =================
 const allowedOrigins = [
   process.env.FRONTEND_URL,
-  process.env.DATABASE_URL,
+  process.env.EXTERNAL_URL,
   "http://localhost:5173",
   "http://localhost:10000",
 ].filter(Boolean);
