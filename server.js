@@ -36,14 +36,14 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // ================= CORS =================
 const allowedOrigins = [
-  "https://remote-job-frontend.vercel.app",
+  process.env.FRONTEND_URL,
   "http://localhost:5173",
   "http://localhost:10000",
-];
+].filter(Boolean);
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests without Origin (Postman, curl, mobile apps)
+    // Allow requests from Postman, curl, etc.
     if (!origin) return callback(null, true);
 
     if (
@@ -55,7 +55,7 @@ const corsOptions = {
     }
 
     console.warn(`❌ Blocked by CORS: ${origin}`);
-    return callback(new Error("Not allowed by CORS"));
+    callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
 };
@@ -88,6 +88,8 @@ app.get("/health", async (req, res) => {
       uptime: process.uptime(),
     });
   } catch (error) {
+    console.error(error);
+
     res.status(500).json({
       status: "error",
       database: "disconnected",
@@ -126,9 +128,9 @@ app.use((err, req, res, next) => {
     });
   }
 
-  res.status(500).json({
-    message: "Internal server error",
-    ...(isProd ? {} : { error: err.message }),
+  res.status(err.status || 500).json({
+    message: err.message || "Internal server error",
+    ...(isProd ? {} : { stack: err.stack }),
   });
 });
 
@@ -145,4 +147,15 @@ app.listen(PORT, () => {
   } else {
     console.log(`📄 Swagger Docs: http://localhost:${PORT}/api-docs`);
   }
+});
+
+// ================= GRACEFUL SHUTDOWN =================
+process.on("SIGTERM", () => {
+  console.log("🛑 SIGTERM received. Shutting down server...");
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  console.log("🛑 Server stopped.");
+  process.exit(0);
 });

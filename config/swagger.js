@@ -17,7 +17,7 @@ const options = {
     description: "Local Development",
   },
   {
-    url: "https://your-render-service.onrender.com",
+    url: "https://remote-job-manager-backend.onrender.com",
     description: "Production",
   },
 ],
