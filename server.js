@@ -45,32 +45,39 @@ app.use(
 // ================= CORS =================
 const allowedOrigins = [
   process.env.FRONTEND_URL,
-  process.env.EXTERNAL_URL,
+  "https://remote-job-frontend.vercel.app",
+  "https://remote-job-manager-backend.onrender.com",
   "http://localhost:5173",
   "http://localhost:10000",
 ].filter(Boolean);
 
-const corsOptions = {
-  origin(origin, callback) {
-    // Allow Postman, curl, mobile apps, etc.
-    if (!origin) {
-      return callback(null, true);
-    }
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Postman, curl, mobile apps
+      if (!origin) return callback(null, true);
 
-    const allowed =
-      allowedOrigins.includes(origin) ||
-      allowedOrigins.some((o) => origin === o);
+      // Explicitly allowed origins
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
 
-    if (allowed) {
-      return callback(null, true);
-    }
+      // Render services
+      if (origin.endsWith(".onrender.com")) {
+        return callback(null, true);
+      }
 
-    console.warn(`❌ Blocked by CORS: ${origin}`);
-    callback(new Error("Not allowed by CORS"));
-  },
-  credentials: true,
-};
+      // Vercel deployments and previews
+      if (origin.endsWith(".vercel.app")) {
+        return callback(null, true);
+      }
 
+      console.log("Blocked Origin:", origin);
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
 app.use(cors(corsOptions));
 
 // ================= BODY PARSERS =================
