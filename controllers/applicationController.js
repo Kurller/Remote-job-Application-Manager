@@ -11,6 +11,7 @@ export const applyToJob = async (req, res) => {
   try {
     const userId = req.user.id;
     const jobId = parseInt(req.params.jobId, 10);
+
     console.log("req.file:", req.file);
     console.log("req.body:", req.body);
 
@@ -20,41 +21,86 @@ export const applyToJob = async (req, res) => {
 
     console.log("Apply attempt:", { userId, jobId });
 
-    // Prevent duplicate
+    // Prevent duplicate application
     const existing = await pool.query(
       "SELECT id FROM applications WHERE user_id = $1 AND job_id = $2",
       [userId, jobId]
     );
+
     console.log("Existing rows:", existing.rows);
 
     if (existing.rows.length) {
-      return res.status(400).json({ message: "You already applied for this job" });
+      return res.status(400).json({
+        message: "You already applied for this job"
+      });
     }
+
 
     // Save CV
     const cvResult = await pool.query(
-  `INSERT INTO cvs (user_id, filename, file_url, mimetype)
-   VALUES ($1, $2, $3, $4)
-   RETURNING id`,
-  [userId, req.file.originalname, req.file.path, req.file.mimetype]
-);
-
-const cvId = cvResult.rows[0].id;
-   // Insert application
-    const appResult = await pool.query(
-      `INSERT INTO applications (user_id, job_id, cv_id)
-       VALUES ($1, $2, $3)
-       RETURNING *`,
-      [userId, jobId, cvId]
+      `
+      INSERT INTO cvs
+      (
+        user_id,
+        filename,
+        mimetype,
+        file_url,
+        path,
+        version,
+        is_active
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
+      RETURNING id
+      `,
+      [
+        userId,
+        req.file.originalname,
+        req.file.mimetype,
+        req.file.path,
+        req.file.path,
+        1,
+        true
+      ]
     );
 
-    res.status(201).json({ message: "Application submitted successfully", application: appResult.rows[0] });
+
+    const cvId = cvResult.rows[0].id;
+
+
+    // Insert application
+    const appResult = await pool.query(
+      `
+      INSERT INTO applications
+      (
+        user_id,
+        job_id,
+        cv_id
+      )
+      VALUES ($1,$2,$3)
+      RETURNING *
+      `,
+      [
+        userId,
+        jobId,
+        cvId
+      ]
+    );
+
+
+    res.status(201).json({
+      message: "Application submitted successfully",
+      application: appResult.rows[0]
+    });
+
+
   } catch (err) {
     console.error("Apply job error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({
+      message: "Server error",
+      error: err.message
+    });
   }
 };
-
 
 // Get all applications (admin only)
 export const getAllApplications = async (req, res) => {
@@ -116,7 +162,7 @@ export const getUserApplications = async (req, res) => {
         a.applied_at,
         j.title,
         c.filename AS cv_name,
-        c.path AS cv_file
+        c.file_url AS cv_file
       FROM applications a
       JOIN jobs j ON a.job_id = j.id
       JOIN cvs c ON a.cv_id = c.id
