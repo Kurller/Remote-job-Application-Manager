@@ -32,8 +32,16 @@ app.use(helmet());
 app.use(morgan(isProd ? "combined" : "dev"));
 
 // ================= SWAGGER =================
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    swaggerOptions: {
+      validatorUrl: null,
+    },
+  })
+);
 // ================= CORS =================
 const allowedOrigins = [
   process.env.FRONTEND_URL,

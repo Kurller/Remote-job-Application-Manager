@@ -1,5 +1,9 @@
 import swaggerJSDoc from "swagger-jsdoc";
 
+const serverUrl =
+  process.env.RENDER_EXTERNAL_URL ||
+  `http://localhost:${process.env.PORT || 10000}`;
+
 const options = {
   definition: {
     openapi: "3.0.0",
@@ -10,17 +14,14 @@ const options = {
         "API for managing job applications with JWT authentication, role-based access, and CV upload",
     },
 
-    // ✅ FIXED: use same-origin
-  servers: [
-  {
-    url: "http://localhost:10000",
-    description: "Local Development",
-  },
-  {
-    url: "https://remote-job-manager-backend.onrender.com",
-    description: "Production",
-  },
-],
+    servers: [
+      {
+        url: serverUrl,
+        description: process.env.RENDER_EXTERNAL_URL
+          ? "Production"
+          : "Local Development",
+      },
+    ],
 
     components: {
       securitySchemes: {
@@ -34,11 +35,26 @@ const options = {
         Application: {
           type: "object",
           properties: {
-            id: { type: "string", example: "123" },
-            userId: { type: "string", example: "user_001" },
-            jobId: { type: "string", example: "job_001" },
-            status: { type: "string", example: "pending" },
-            cvUrl: { type: "string", example: "https://example.com/cv.pdf" },
+            id: {
+              type: "string",
+              example: "123",
+            },
+            userId: {
+              type: "string",
+              example: "user_001",
+            },
+            jobId: {
+              type: "string",
+              example: "job_001",
+            },
+            status: {
+              type: "string",
+              example: "pending",
+            },
+            cvUrl: {
+              type: "string",
+              example: "https://example.com/cv.pdf",
+            },
           },
         },
       },
