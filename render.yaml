@@ -1,0 +1,54 @@
+# Render deployment configuration
+# Create a Web Service on Render and use this render.yaml
+
+services:
+  - type: web
+    name: remote-job-manager
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DB_HOST
+        fromDatabase:
+          name: remote-job-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: remote-job-db
+          property: port
+      - key: DB_USER
+        fromDatabase:
+          name: remote-job-db
+          property: user
+      - key: DB_PASS
+        fromDatabase:
+          name: remote-job-db
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: remote-job-db
+          property: database
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: TAILORED_CV_LAMBDA_URL
+        sync: false
+
+databases:
+  - name: remote-job-db
+    plan: free
+    databaseName: remote_job
+    user: remote_job_user

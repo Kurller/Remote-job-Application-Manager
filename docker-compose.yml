@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: remote-job-db
+
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: remote_job_manager
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+
+    restart: unless-stopped
+
+  backend:
+    build: .
+
+    container_name: remote-job-api
+
+    ports:
+      - "10000:10000"
+
+    env_file:
+      - .env.docker
+
+    depends_on:
+      - postgres
+
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
