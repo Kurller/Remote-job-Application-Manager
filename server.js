@@ -42,15 +42,17 @@ const allowedOrigins = [
 ].filter(Boolean);
 
 const corsOptions = {
-  origin: (origin, callback) => {
-    // Allow requests from Postman, curl, etc.
-    if (!origin) return callback(null, true);
+  origin(origin, callback) {
+    // Allow Postman, curl, mobile apps, etc.
+    if (!origin) {
+      return callback(null, true);
+    }
 
-    if (
+    const allowed =
       allowedOrigins.includes(origin) ||
-      origin?.includes("onrender.com") ||
-      origin?.endsWith(".vercel.app")
-    ) {
+      allowedOrigins.some((o) => origin === o);
+
+    if (allowed) {
       return callback(null, true);
     }
 
@@ -77,7 +79,7 @@ app.use("/tailored-cvs", tailoredCVRoutes);
 app.use("/candidates", candidateRoutes);
 app.use("/cvs", cvRoutes);
 
-// ================= HEALTH CHECK =================
+// ================= HEALTH =================
 app.get("/health", async (req, res) => {
   try {
     await pool.query("SELECT 1");
@@ -114,7 +116,8 @@ app.use((req, res) => {
 
 // ================= ERROR HANDLER =================
 app.use((err, req, res, next) => {
-  console.error("❌ Server Error:", err);
+  console.error("❌ Server Error:");
+  console.error(err);
 
   if (err.message === "Not allowed by CORS") {
     return res.status(403).json({
@@ -129,7 +132,9 @@ app.use((err, req, res, next) => {
   }
 
   res.status(err.status || 500).json({
-    message: err.message || "Internal server error",
+    message: isProd
+      ? "Internal server error"
+      : err.message,
     ...(isProd ? {} : { stack: err.stack }),
   });
 });
@@ -137,7 +142,7 @@ app.use((err, req, res, next) => {
 // ================= START SERVER =================
 const PORT = process.env.PORT || 10000;
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 
   if (process.env.RENDER_EXTERNAL_URL) {
@@ -150,12 +155,20 @@ app.listen(PORT, () => {
 });
 
 // ================= GRACEFUL SHUTDOWN =================
-process.on("SIGTERM", () => {
-  console.log("🛑 SIGTERM received. Shutting down server...");
-  process.exit(0);
-});
+const shutdown = async () => {
+  console.log("🛑 Shutting down server...");
 
-process.on("SIGINT", () => {
-  console.log("🛑 Server stopped.");
-  process.exit(0);
-});
+  server.close(async () => {
+    try {
+      await pool.end();
+      console.log("✅ Database connection closed.");
+    } catch (err) {
+      console.error(err);
+    }
+
+    process.exit(0);
+  });
+};
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
