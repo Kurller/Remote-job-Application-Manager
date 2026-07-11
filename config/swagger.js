@@ -1,9 +1,9 @@
 import swaggerJSDoc from "swagger-jsdoc";
 
 const serverUrl =
+  process.env.RENDER_EXTERNAL_URL ||
   process.env.API_URL ||
   `http://localhost:${process.env.PORT || 10000}`;
-
 const options = {
   definition: {
     openapi: "3.0.0",
@@ -15,13 +15,13 @@ const options = {
     },
 
     servers: [
-      {
-        url: serverUrl,
-        description: process.env.API_URL
-          ? "Production"
-          : "Local Development",
-      },
-    ],
+  {
+    url: serverUrl,
+    description: process.env.RENDER_EXTERNAL_URL
+      ? "Production"
+      : "Local Development",
+  },
+],
 
     components: {
       securitySchemes: {
