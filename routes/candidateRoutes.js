@@ -11,13 +11,6 @@ const router = express.Router();
 
 /**
  * @swagger
- * tags:
- *   name: Candidates
- *   description: Candidate management APIs
- */
-
-/**
- * @swagger
  * /candidates:
  *   post:
  *     summary: Create a new candidate
@@ -31,29 +24,34 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             required:
- *               - name
+ *               - first_name
+ *               - last_name
  *               - email
  *             properties:
- *               name:
+ *               first_name:
  *                 type: string
- *                 example: John Doe
+ *                 example: John
+ *               last_name:
+ *                 type: string
+ *                 example: Doe
  *               email:
  *                 type: string
+ *                 format: email
  *                 example: john@example.com
  *               phone:
  *                 type: string
- *                 example: 08012345678
- *               position:
- *                 type: string
- *                 example: Backend Developer
+ *                 example: "08012345678"
  *     responses:
  *       201:
  *         description: Candidate created successfully
+ *       400:
+ *         description: Missing required fields
  *       401:
  *         description: Unauthorized
+ *       409:
+ *         description: Candidate with this email already exists
  */
 router.post("/", auth, createCandidate);
-
 /**
  * @swagger
  * /candidates:

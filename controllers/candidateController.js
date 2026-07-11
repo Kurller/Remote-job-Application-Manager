@@ -4,7 +4,14 @@ import { pool } from "../config/db.js";
 /* CREATE CANDIDATE */
 export const createCandidate = async (req, res) => {
   try {
-    const { first_name, last_name, email } = req.body;
+    const userId = req.user.id;
+
+    const {
+      first_name,
+      last_name,
+      email,
+      phone
+    } = req.body;
 
     if (!first_name || !last_name || !email) {
       return res.status(400).json({
@@ -13,23 +20,34 @@ export const createCandidate = async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO candidates (first_name, last_name, email)
-       VALUES ($1, $2, $3)
-       RETURNING *`,
-      [first_name.trim(), last_name.trim(), email.toLowerCase()]
+      `INSERT INTO candidates
+      (user_id, first_name, last_name, email, phone)
+      VALUES ($1,$2,$3,$4,$5)
+      RETURNING *`,
+      [
+        userId,
+        first_name.trim(),
+        last_name.trim(),
+        email.toLowerCase(),
+        phone || null
+      ]
     );
 
     res.status(201).json(result.rows[0]);
+
   } catch (err) {
-    // 🔑 Handle duplicate email
+
+    console.error(err);
+
     if (err.code === "23505") {
       return res.status(409).json({
-        message: "Candidate with this email already exists",
+        message: "Candidate already exists"
       });
     }
 
-    console.error("createCandidate error:", err.message);
-    res.status(500).json({ message: "Failed to create candidate" });
+    res.status(500).json({
+      message: "Failed to create candidate"
+    });
   }
 };
 
