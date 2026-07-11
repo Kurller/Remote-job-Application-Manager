@@ -1,7 +1,7 @@
 import swaggerJSDoc from "swagger-jsdoc";
 
 const serverUrl =
-  process.env.DATABASE_URL ||
+  process.env.API_URL ||
   `http://localhost:${process.env.PORT || 10000}`;
 
 const options = {
@@ -17,7 +17,7 @@ const options = {
     servers: [
       {
         url: serverUrl,
-        description: process.env.DATABASE_URL
+        description: process.env.API_URL
           ? "Production"
           : "Local Development",
       },
@@ -29,33 +29,6 @@ const options = {
           type: "http",
           scheme: "bearer",
           bearerFormat: "JWT",
-        },
-      },
-      schemas: {
-        Application: {
-          type: "object",
-          properties: {
-            id: {
-              type: "string",
-              example: "123",
-            },
-            userId: {
-              type: "string",
-              example: "user_001",
-            },
-            jobId: {
-              type: "string",
-              example: "job_001",
-            },
-            status: {
-              type: "string",
-              example: "pending",
-            },
-            cvUrl: {
-              type: "string",
-              example: "https://example.com/cv.pdf",
-            },
-          },
         },
       },
     },
@@ -70,6 +43,4 @@ const options = {
   apis: ["./routes/**/*.js"],
 };
 
-const swaggerSpec = swaggerJSDoc(options);
-
-export default swaggerSpec;
+export default swaggerJSDoc(options);
