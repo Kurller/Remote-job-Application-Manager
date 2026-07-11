@@ -78,7 +78,7 @@ app.use(
     credentials: true,
   })
 );
-app.use(cors(corsOptions));
+
 
 // ================= BODY PARSERS =================
 app.use(express.json({ limit: "50mb" }));
