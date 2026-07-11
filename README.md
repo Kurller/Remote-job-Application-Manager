@@ -1,295 +1,548 @@
-# Remote Job Application Manager (Backend)
+# 🚀 Remote Job Application Manager API
 
-The backend service for the **Remote Job Application Manager** application. It provides RESTful APIs for authentication, job management, job applications, and CV handling. The backend is built with Node.js and Express, uses PostgreSQL for data persistence, and integrates Cloudinary for CV storage.
+A production-ready REST API for managing remote job applications, candidate profiles, CV uploads, and AI-powered CV tailoring.
 
----
-Project Link:https://remote-job-application-manager-1.onrender.com/api-docs
-## 🚀 Features
-
-* **JWT Authentication** (Access & Refresh tokens)
-* **Role-based access control** (User / Admin)
-* **Job management APIs**
-* **Job application tracking**
-* **CV upload & secure download (PDF)**
-* **PostgreSQL database integration**
-* **Production-ready deployment on Render**
+This project demonstrates modern backend development practices including authentication, PostgreSQL integration, cloud file storage, AI integration, API documentation, Docker containerization, and cloud deployment.
 
 ---
 
-## 🧱 Tech Stack
+# 🌐 Live Demo
 
-* **Node.js**
-* **Express.js**
-* **PostgreSQL** (Render managed database)
-* **JWT** (jsonwebtoken)
-* **Cloudinary** (file storage for CVs)
-* **Multer** (file uploads)
-* **dotenv** (environment variables)
+> **Note:** This project is hosted on free-tier cloud services. If the live demo is temporarily unavailable due to free-tier limitations, please watch the complete YouTube walkthrough below.
+
+### Frontend
+
+https://your-frontend.vercel.app
+
+### Backend API
+
+https://remote-job-manager-backend.onrender.com
+
+### Swagger Documentation
+
+https://remote-job-manager-backend.onrender.com/api-docs
+
+### 🎥 YouTube Walkthrough
+
+https://youtu.be/ujbkF4yQRLU
+
+The video demonstrates every major feature of the application and serves as a permanent showcase even when the live deployment is unavailable.
 
 ---
 
-## 📁 Project Structure
+# 📌 Overview
 
-```text
-backend/
-│── controllers/
-│   ├── auth.controller.js
-│   ├── job.controller.js
-│   ├── application.controller.js
-│   ├── cvController.js
-    ├── TailoredCVController.js
+Searching and applying for remote jobs often involves managing multiple applications, tailoring CVs for different positions, and keeping track of each application's progress.
+
+The Remote Job Application Manager API provides a centralized backend that allows users to:
+
+* Create and manage job applications
+* Upload and manage multiple CVs
+* Generate AI-tailored CVs based on job descriptions
+* Track application progress
+* Manage candidate profiles
+* Secure endpoints using JWT authentication
+* Store uploaded documents securely in Cloudinary
+
+---
+
+# ✨ Features
+
+## Authentication
+
+* User Registration
+* Secure Login
+* JWT Authentication
+* Protected Routes
+* Password Hashing using bcrypt
+
+---
+
+## Job Management
+
+* Create Job
+* View Jobs
+* Update Job Status
+* Delete Jobs
+
+Supported statuses include:
+
+* Applied
+* Interview
+* Assessment
+* Offer
+* Rejected
+
+---
+
+## Candidate Management
+
+* Create Candidate
+* View Candidates
+* Delete Candidate
+
+---
+
+## CV Management
+
+* Upload PDF CV
+* Cloudinary Storage
+* Download CV
+* Delete CV
+* Multiple CV Support
+
+---
+
+## AI Tailored CV
+
+Generate customized CVs using AI.
+
+Workflow:
+
+* Upload an existing CV
+* Extract PDF content
+* Analyze Job Description
+* Generate tailored content
+* Produce a downloadable PDF
+
+---
+
+## Application Management
+
+* Apply for Jobs
+* Upload CV during application
+* Track Applications
+* Update Application Status
+
+---
+
+## API Documentation
+
+Interactive Swagger/OpenAPI documentation.
+
+Available at:
+
+```
+/api-docs
+```
+
+---
+
+## Health Monitoring
+
+Health endpoint
+
+```
+GET /health
+```
+
+Returns
+
+```json
+{
+  "status": "ok",
+  "database": "connected"
+}
+```
+
+---
+
+# 🏗 System Architecture
+
+```
+                  React Frontend
+                         │
+                         │ HTTPS
+                         ▼
+               Express REST API
+                         │
+        ┌────────────────┼────────────────┐
+        │                │                │
+        ▼                ▼                ▼
+ PostgreSQL        Cloudinary       OpenAI/OpenRouter
+ Database        File Storage       AI Tailoring
+                         │
+                         ▼
+                JWT Authentication
+```
+
+---
+
+# 🛠 Tech Stack
+
+### Backend
+
+* Node.js
+* Express.js
+
+### Database
+
+* PostgreSQL
+
+### Database Driver
+
+* pg
+
+### Authentication
+
+* JWT
+* bcrypt
+
+### File Upload
+
+* Multer
+* Cloudinary
+
+### Documentation
+
+* Swagger UI
+* Swagger JSDoc
+
+### Security
+
+* Helmet
+* CORS
+* Cookie Parser
+* Rate Limiting
+
+### Logging
+
+* Morgan
+
+### AI
+
+* OpenAI SDK
+* OpenRouter API
+
+### PDF Processing
+
+* pdf-lib
+* pdf-parse
+* PDFKit
+
+### Deployment
+
+* Docker
+* Render
+
+---
+
+# 📁 Project Structure
+
+```
+project
 │
-│── middleware/
-│   ├── auth.middleware.js
-│   ├── admin.middleware.js
-│
-│── routes/
-│   ├── auth.routes.js
-│   ├── job.routes.js
-│   ├── application.routes.js
-│   ├── cvRoutes.js
-    ├── TailoredCVRoutes.js
-│
-│── config/
+├── config
 │   ├── db.js
-│   ├── cloudinary.js
+│   └── swagger.js
 │
-│── utils/
-│   ├── uploadBufferToCloudinary.js
-│
-│── server.js
-│── package.json
-│── .env
+├── middleware
+├── routes
+├── controllers
+├── services
+├── uploads
+├── utils
+├── server.js
+└── package.json
 ```
 
 ---
 
-## 🔐 Authentication Flow
+# 🔐 Authentication
 
-1. User registers or logs in
-2. Backend validates credentials
-3. JWT access token is issued
-4. Token is required in the `Authorization` header:
+Most endpoints require a Bearer Token.
 
-```http
-Authorization: Bearer <token>
+```
+Authorization: Bearer <JWT_TOKEN>
 ```
 
-5. Protected routes validate token via middleware
-
 ---
 
-## 🚦 Roles & Permissions
+# 📚 API Endpoints
 
-### User
+### Authentication
 
-* Register & login
-* View available jobs
-* Apply for jobs
-* Upload CV
-* Download own CV
-
-### Admin
-
-* View all job applications
-* Review and track application status
-* Download any submitted CV
-
-Role checks are enforced via middleware.
-
----
-
-## 📡 API Endpoints
-
-### 🔑 Auth
-
-```http
+```
 POST /auth/register
 POST /auth/login
-POST /auth/refresh-token
+POST /auth/logout
+POST /auth/refresh
 ```
 
-### 💼 Jobs
+### Jobs
 
-```http
-GET  /jobs
-POST /jobs            (admin)
+```
+GET /jobs
+POST /jobs
+PUT /jobs/:id/status
 ```
 
-### 📄 Applications
+### Applications
 
-```http
-POST /applications
-GET  /applications/user
-GET  /applications/all    (admin)
+```
+POST /applications/apply/:jobId
+GET /applications
+GET /applications/all
+PUT /applications/:id
 ```
 
-### 📎 CVs
+### CVs
 
-```http
+```
 POST /cvs/upload
-GET  /cvs/download/:id
+GET /cvs
+GET /cvs/download/:id
+DELETE /cvs/delete/:id
 ```
-### 📎 TailoredCVs
 
-```http
+### Tailored CVs
+
+```
 POST /tailored-cvs
-GET  /tailored-cvs/download/:id
 GET /tailored-cvs
+GET /tailored-cvs/download/:id
 ```
----
 
-## 🧪 Database Schema (Overview)
+### Candidates
 
-### users
-
-* id
-* name
-* email
-* password
-* role
-* created_at
-
-### jobs
-
-* id
-* title
-* company
-* description
-
-### applications
-
-* id
-* user_id
-* job_id
-* cv_id
-* status
-* applied_at
-
-### cvs
-
-* id
-* user_id
-* filename
-* file_url
-* created_at
+```
+GET /candidates
+POST /candidates
+GET /candidates/:id
+DELETE /candidates/:id
+```
 
 ---
 
-## ⚙️ Environment Variables
+# 🔒 Security Features
 
-Create a `.env` file in the backend root:
+* JWT Authentication
+* Password Hashing
+* Helmet Security Headers
+* Protected Routes
+* Input Validation
+* File Upload Validation
+* Rate Limiting
+* CORS Protection
+
+---
+
+# ☁ Cloud Storage
+
+Uploaded CVs are stored securely using Cloudinary.
+
+Benefits include:
+
+* No local storage
+* Fast downloads
+* Secure file hosting
+* High availability
+* Easy scalability
+
+---
+
+# 🤖 AI Integration
+
+The application integrates with an AI model to generate tailored CVs.
+
+Workflow:
+
+```
+Upload CV
+
+↓
+
+Extract PDF Text
+
+↓
+
+Send Prompt to AI
+
+↓
+
+Generate Tailored Content
+
+↓
+
+Create New PDF
+
+↓
+
+Download Tailored CV
+```
+
+---
+
+# 🐳 Docker Support
+
+Run locally using Docker.
+
+```bash
+docker compose up --build
+```
+
+---
+
+# 🚀 Deployment
+
+The application is containerized using Docker and deployed on Render.
+
+Production deployment includes:
+
+* Docker Containers
+* PostgreSQL Database
+* Environment Variables
+* Cloudinary Integration
+* Swagger Documentation
+
+---
+
+# ⚙ Environment Variables
 
 ```env
-# =========================
-# Server / Deployment
-# =========================
-PORT=10000
-NODE_ENV=production
-FRONTEND_URLS=http://localhost:5173,https://remote-job-frontend.vercel.app
+PORT=
 
+DATABASE_URL=
 
-# =========================
-# Database (Render.com Postgres)
-# =========================
-DATABASE_URL=postgresql://remote_job_user:******
+JWT_SECRET=
 
-# =========================
-# JWT Secrets
-# =========================
-JWT_SECRET=*****
-JWT_REFRESH_SECRET=*****
+JWT_EXPIRES_IN=
 
-# =========================
-# OpenRouter / Tailored CV
-# =========================
-OPENROUTER_API_KEY=sK-*******
-TAILORED_CV_LAMBDA_URL=*****
+CLOUDINARY_CLOUD_NAME=
 
-# =========================
-# Cloudinary Configuration
-# =========================
-CLOUDINARY_CLOUD_NAME=****
-CLOUDINARY_API_KEY=******
-CLOUDINARY_API_SECRET=S_*****
+CLOUDINARY_API_KEY=
 
+CLOUDINARY_API_SECRET=
+
+OPENAI_API_KEY=
+
+FRONTEND_URL=
 ```
 
 ---
 
-## 🧪 Running Locally
-Clone the repository
+# 📷 Screenshots
 
-git clone https://github.com/Kurller/Remote-job-Application-Manager.git
+Include screenshots of:
 
-cd Remote-job-Application-Manager
-
-### 1️⃣ Install dependencies
-
-```bash
-npm install
-```
-
-### 2️⃣ Start the server
-
-```bash
-npm run dev
-```
-
-Server runs on:
-
-```text
-http://localhost:3000
-```
+* Home Page
+* Login
+* Dashboard
+* Job Management
+* Candidate Management
+* CV Upload
+* AI Tailored CV
+* Swagger Documentation
+* Database Tables
 
 ---
 
-## 🚀 Deployment (Render)
+# 🎥 Project Walkthrough
 
-1. Create a **Web Service** on Render
-2. Connect your GitHub repository
-3. Set build command:
+Watch the complete project demonstration on YouTube.
 
-```bash
-npm install
-```
+**Video Link**
 
-4. Set start command:
+https://youtu.be/YOUR_VIDEO_ID
 
-```bash
-node server.js
-```
+The walkthrough includes:
 
-5. Add environment variables in Render dashboard
-6. Deploy 🎉
-
----
-
-## 🔒 Security Notes
-
-* Passwords are hashed before storage
-* JWT secrets must never be committed
-* HTTPS is required in production
-* File uploads are validated before processing
+* Project Overview
+* System Architecture
+* Authentication
+* Job Management
+* Candidate Management
+* CV Upload
+* AI Tailored CV Generation
+* Swagger Documentation
+* Docker Deployment
+* Production Deployment on Render
 
 ---
 
-## 🛣️ Roadmap
+# 🧪 Future Improvements
 
-* Application status updates
-* Admin analytics
-* API rate limiting
-* Automated tests
+* Email Notifications
+* Resume Scoring
+* Cover Letter Generation
+* AI Interview Preparation
+* Job Recommendation Engine
+* Company Dashboard
+* Recruiter Portal
+* Admin Dashboard
+* Unit Tests
+* Integration Tests
+* CI/CD Pipeline
+* Role-Based Access Control
+* Search & Filtering
 
 ---
 
-## 👨‍💻 Author
+# 📖 What I Learned
 
-**Remote Job Application Manager – Backend**
+Building this project strengthened my understanding of:
 
-Built with Node.js, Express, and PostgreSQL.
+* REST API Design
+* Express.js
+* PostgreSQL
+* JWT Authentication
+* Middleware
+* Cloud Storage
+* File Upload Handling
+* AI Integration
+* Docker
+* Production Deployment
+* Environment Variables
+* Swagger Documentation
+* Error Handling
+* API Security
+* Modern Backend Architecture
 
-Kolawole Oladejo
 ---
 
+# 💡 Challenges Solved
 
+During development, I solved several real-world engineering challenges including:
+
+* Dockerizing a Node.js application
+* Deploying a production-ready API on Render
+* Configuring PostgreSQL in production
+* Implementing secure JWT authentication
+* Uploading files to Cloudinary
+* Processing PDF documents
+* Integrating AI-generated CV tailoring
+* Managing CORS across multiple deployment environments
+* Documenting APIs with Swagger/OpenAPI
+
+---
+
+# 👨‍💻 Author
+
+## Oladejo Kolawole
+
+Backend Software Engineer
+
+### Skills
+
+* Node.js
+* Express.js
+* PostgreSQL
+* Docker
+* REST APIs
+* JWT Authentication
+* Cloudinary
+* Swagger/OpenAPI
+* JavaScript (ES6+)
+* SQL
+
+---
+
+# ⭐ If You Like This Project
+
+If you found this project helpful or interesting, consider giving it a ⭐ on GitHub.
+
+---
+
+# 📄 License
+
+This project is licensed under the MIT License.
